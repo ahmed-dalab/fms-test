@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DRIVER
+}
+
+enum TruckStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TripStatus {
+  PENDING
+  IN_PROGRESS
+  STARTED
+  COMPLETED
+  SCHEDULED
+}
+
+enum MaintenanceStatus {
+  COMPLETED
+  SCHEDULED
+}
+
+enum ExpenseType {
+  FUEL
+  MAINTENANCE
+  REPAIR
+  OTHER
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+}
+enum DistanceUnit {
+  KILOMETERS
+  MILES
+}
+
+enum FuelUnit {
+  LITERS
+  GALLONS
+}
+
+
+// Models
+model User {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String
+  email            String    @unique
+  password         String
+  role             Role
+  resetToken       String?   @db.VarChar(255)
+  resetTokenExpiry DateTime?
+  tenantId         String?   @db.Uuid
+  tenant           Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  driver           Driver?
+  createdAt   DateTime @default(now())
+}
+
+model Tenant {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  email       String
+  phoneNumber String
+   logoUrl              String?             // optional
+  address              String?             // optional
+  city                 String?             // optional
+  state                String?             // optional
+  zipCode              String?             // optional
+  industry             String?             // optional
+  companySize          Int?          // optional
+  users       User[]
+  trucks      Truck[]
+  Driver      Driver[]
+  trips              Trip[]
+  fuelRecords        FuelRecord[]
+  maintenanceRecords MaintenanceRecord[]
+  expenses           Expense[]
+   setting           TenantSetting?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Truck {
+  id                 String              @id @default(uuid()) @db.Uuid
+  plateNumber        String              @unique
+  model              String
+  vin                String?              @unique
+  status             TruckStatus
+  capacity           Float?
+  tenantId           String              @db.Uuid
+  createdAt          DateTime            @default(now())
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  trips              Trip[]
+  fuelRecords        FuelRecord[]
+  maintenanceRecords MaintenanceRecord[]
+  expenses           Expense[]
+}
+
+model Driver {
+  id            String       @id @default(uuid()) @db.Uuid
+  licenseNumber String       @unique
+  phone         String
+  status        DriverStatus
+  tenantId      String       @db.Uuid
+  createdAt     DateTime     @default(now())
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String       @unique @db.Uuid
+  user          User         @relation(fields: [userId], references: [id])
+  trips         Trip[]
+}
+
+model Trip {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckId     String?       @db.Uuid
+  driverId    String?       @db.Uuid
+  truck       Truck?        @relation(fields: [truckId], references: [id])
+  driver      Driver?       @relation(fields: [driverId], references: [id])
+  origin      String
+  destination String
+  price       Float
+  status      TripStatus
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime     @default(now())
+  fuelRecords FuelRecord[]
+}
+
+model FuelRecord {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckId       String   @db.Uuid
+  tripId        String?  @db.Uuid
+  truck         Truck    @relation(fields: [truckId], references: [id])
+  trip          Trip?    @relation(fields: [tripId], references: [id])
+  date          DateTime
+  liters        Float
+  pricePerLiter Float
+  totalCost     Float
+  fuelStation   String
+}
+
+model MaintenanceRecord {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @db.Uuid
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckId     String            @db.Uuid
+  truck       Truck             @relation(fields: [truckId], references: [id])
+  date        DateTime
+  description String
+  cost        Float
+  status      MaintenanceStatus
+}
+
+model Expense {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @db.Uuid
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  truckId     String      @db.Uuid
+  truck       Truck       @relation(fields: [truckId], references: [id])
+  date        DateTime
+  amount      Float
+  description String
+  type        ExpenseType
+}
+model TenantSetting {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId     String   @unique @db.Uuid
+
+  distanceUnit     DistanceUnit   @default(KILOMETERS) // KM or MILES
+  fuelUnit         FuelUnit       @default(LITERS)     // LITERS or GALLONS
+  timezone         String         @default("Africa/Mogadishu") // TZ database name
+  currency         String         @default("USD") // or use enum for currencies
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
