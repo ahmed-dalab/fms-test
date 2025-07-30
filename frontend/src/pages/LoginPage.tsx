@@ -24,10 +24,31 @@ export function LoginPage() {
   const onSubmit = (data: any) => {
     // In a real application, you would make an API call to authenticate the user
     // and get a token and user object.
+    // For now, we'll just simulate it based on the email address.
+    let role = 'driver'
+    if (data.email.includes('admin')) {
+      role = 'admin'
+    } else if (data.email.includes('super')) {
+      role = 'super-admin'
+    }
+
     const token = 'fake-token'
-    const user = { id: '1', name: 'John Doe', email: data.email, role: 'admin' }
+    const user = { id: '1', name: 'John Doe', email: data.email, role }
     dispatch(login({ token, user }))
-    navigate('/')
+
+    switch (role) {
+      case 'admin':
+        navigate('/admin')
+        break
+      case 'driver':
+        navigate('/driver')
+        break
+      case 'super-admin':
+        navigate('/super-admin')
+        break
+      default:
+        navigate('/')
+    }
   }
 
   return (
